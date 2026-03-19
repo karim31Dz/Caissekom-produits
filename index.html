@@ -1,155 +1,30 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CaisseKom - Scanner Multi-Format</title>
-    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
-    <style>
-        :root {
-            --primary: #29318C; 
-            --accent: #E53139;  
-            --bg: #FFFFFF;
-        }
+Quagga.onDetected(function(result) {
+    let code = result.codeResult.code;
+    let now = Date.now();
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { 
-            height: 100%; height: -webkit-fill-available; 
-            margin: 0; padding: 0; overflow: hidden; 
-            background: var(--bg);
-            font-family: -apple-system, system-ui, sans-serif;
-        }
-        body { display: flex; flex-direction: column; }
+    if (code === dernierCode && (now - tempsDernierScan) < 2500) return;
+    
+    dernierCode = code;
+    tempsDernierScan = now;
 
-        header {
-            height: 70px; display: flex; align-items: center; justify-content: center;
-            background: #FFFFFF; border-bottom: 1px solid #EEE; flex-shrink: 0; z-index: 20;
-        }
-        header img { height: 40px; width: auto; object-fit: contain; }
-        .logo-fallback { font-weight: 900; font-size: 1.4rem; color: var(--primary); display: none; }
-        .logo-fallback span { color: var(--accent); }
+    document.getElementById('audioBip').play().catch(()=>{});
+    if(navigator.vibrate) navigator.vibrate(60);
 
-        #interactive.viewport { flex: 1; position: relative; background: #000; overflow: hidden; }
-        #interactive.viewport > video { width: 100%; height: 100%; object-fit: cover; }
-
-        .laser-container {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 75%; height: 120px; border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 12px; z-index: 5;
-        }
-        .laser-line {
-            position: absolute; top: 50%; left: 5%; width: 90%; height: 2px;
-            background: var(--accent); box-shadow: 0 0 10px var(--accent);
-            animation: blink 0.8s infinite;
-        }
-
-        .result-panel {
-            background: #FFFFFF; padding: 20px; text-align: center;
-            border-top: 2px solid var(--primary); flex-shrink: 0;
-            min-height: 200px; display: flex; flex-direction: column; justify-content: center;
-        }
-
-        .label { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
-        .designation { font-size: 1.5rem; font-weight: bold; color: #222; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .prix-container { color: var(--accent); font-weight: 900; display: flex; align-items: baseline; justify-content: center; }
-        .prix-valeur { font-size: 4.5rem; line-height: 1; }
-        .devise { font-size: 1.5rem; margin-left: 10px; }
-
-        .btn-reload {
-            position: absolute; top: 85px; right: 15px; z-index: 30;
-            background: white; border: 1px solid #DDD; border-radius: 50%;
-            width: 45px; height: 45px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    </style>
-</head>
-<body>
-
-    <header>
-        <img src="logo.png" alt="Logo" onerror="this.style.display='none'; document.querySelector('.logo-fallback').style.display='block';">
-        <div class="logo-fallback">CAISSE<span>KOM</span></div>
-    </header>
-
-    <button class="btn-reload" onclick="location.reload()">🔄</button>
-
-    <div id="interactive" class="viewport">
-        <div class="laser-container">
-            <div class="laser-line"></div>
-        </div>
-    </div>
-
-    <div class="result-panel">
-        <div class="label">Article détecté</div>
-        <div id="res-nom" class="designation">PRÊT AU SCAN...</div>
-
-        <div class="label">Prix de vente</div>
-        <div class="prix-container">
-            <span id="res-prix" class="prix-valeur">0.00</span>
-            <span class="devise">DA</span>
-        </div>
+    const p = catalogue.find(item => item.codebarre === code);
+    
+    if (p) {
+        document.getElementById('res-nom').innerText = p.designation;
+        document.getElementById('res-prix').innerText = p.prix;
         
-        <div id="res-code" style="font-size:10px; color:#CCC; margin-top:10px;">MULTI-FORMAT ACTIF</div>
-    </div>
-
-    <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
-
-    <script>
-        let catalogue = [];
-        let dernierCode = "";
-        let tempsDernierScan = 0;
-
-        fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
-
-        Quagga.init({
-            inputStream: {
-                name: "Live", type: "LiveStream",
-                target: document.querySelector('#interactive'),
-                constraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
-            },
-            decoder: {
-                // ACTIVATION DE TOUS LES TYPES DE CODES BARRES PROFESSIONNELS
-                readers: [
-                    "ean_reader",           /* EAN-13 (Standard produits) */
-                    "ean_8_reader",         /* EAN-8 (Petits produits) */
-                    "code_128_reader",      /* Code 128 (Logistique/Cartons) */
-                    "code_39_reader",       /* Code 39 (Industrie) */
-                    "upc_reader",           /* UPC-A (Standard USA) */
-                    "upc_e_reader",         /* UPC-E (Petit standard USA) */
-                    "codabar_reader"        /* Codabar (Bibliothèques/Sang) */
-                ]
-            },
-            locate: true,
-            halfSample: true // Performance accrue sur les vieux téléphones
-        }, function(err) {
-            if (err) return;
-            Quagga.start();
-        });
-
-        Quagga.onDetected(function(result) {
-            let code = result.codeResult.code;
-            let now = Date.now();
-
-            if (code === dernierCode && (now - tempsDernierScan) < 2500) return;
-            
-            dernierCode = code;
-            tempsDernierScan = now;
-
-            document.getElementById('audioBip').play().catch(()=>{});
-            if(navigator.vibrate) navigator.vibrate(60);
-
-            const p = catalogue.find(item => item.codebarre === code);
-            if (p) {
-                document.getElementById('res-nom').innerText = p.designation;
-                document.getElementById('res-prix').innerText = p.prix;
-                document.getElementById('res-code').innerText = "CODE: " + code;
-            } else {
-                document.getElementById('res-nom').innerText = "ARTICLE INCONNU";
-                document.getElementById('res-prix').innerText = "---";
-                document.getElementById('res-code').innerText = "ID: " + code;
-            }
-        });
-    </script>
-</body>
-</html>
+        // Affichage du prix pack si présent dans le JSON, sinon affiche "---"
+        const prixPack = p.prix_pack ? p.prix_pack : "---";
+        document.getElementById('res-prix-pack').innerText = prixPack;
+        
+        document.getElementById('res-code').innerText = "CODE: " + code;
+    } else {
+        document.getElementById('res-nom').innerText = "ARTICLE INCONNU";
+        document.getElementById('res-prix').innerText = "---";
+        document.getElementById('res-prix-pack').innerText = "---";
+        document.getElementById('res-code').innerText = "ID: " + code;
+    }
+});
