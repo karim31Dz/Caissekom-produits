@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CaisseKom - Scanner Pro & Pack</title>
+    <title>CaisseKom - Scanner Multi-Format</title>
     <script src="https://cdn.jsdelivr.net"></script>
     <style>
         :root {
@@ -23,11 +23,11 @@
         body { display: flex; flex-direction: column; }
 
         header {
-            height: 60px; display: flex; align-items: center; justify-content: center;
+            height: 70px; display: flex; align-items: center; justify-content: center;
             background: #FFFFFF; border-bottom: 1px solid #EEE; flex-shrink: 0; z-index: 20;
         }
-        header img { height: 35px; width: auto; }
-        .logo-fallback { font-weight: 900; font-size: 1.2rem; color: var(--primary); display: none; }
+        header img { height: 40px; width: auto; object-fit: contain; }
+        .logo-fallback { font-weight: 900; font-size: 1.4rem; color: var(--primary); display: none; }
         .logo-fallback span { color: var(--accent); }
 
         #interactive.viewport { flex: 1; position: relative; background: #000; overflow: hidden; }
@@ -35,7 +35,7 @@
 
         .laser-container {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; height: 140px; border: 2px solid rgba(255,255,255,0.3);
+            width: 75%; height: 120px; border: 2px solid rgba(255,255,255,0.3);
             border-radius: 12px; z-index: 5;
         }
         .laser-line {
@@ -46,26 +46,27 @@
 
         .result-panel {
             background: #FFFFFF; padding: 15px; text-align: center;
-            border-top: 3px solid var(--primary); flex-shrink: 0;
-            min-height: 220px;
+            border-top: 2px solid var(--primary); flex-shrink: 0;
+            min-height: 220px; display: flex; flex-direction: column; justify-content: center;
         }
 
-        .label { font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 4px; font-weight: bold; }
-        .designation { font-size: 1.3rem; font-weight: bold; color: #222; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .label { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; font-weight: bold; }
+        .designation { font-size: 1.4rem; font-weight: bold; color: #222; margin-bottom: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
-        /* Layout Grille pour les prix */
-        .prices-grid { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-        .price-box { flex: 1; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #eee; }
+        .prices-row { display: flex; justify-content: space-around; align-items: center; gap: 10px; }
+        .price-item { flex: 1; }
         
         .prix-container { font-weight: 900; display: flex; align-items: baseline; justify-content: center; }
-        .val-u { color: var(--primary); font-size: 2.8rem; line-height: 1; }
-        .val-p { color: var(--success); font-size: 2.8rem; line-height: 1; }
-        .devise { font-size: 1rem; margin-left: 5px; color: #666; }
+        .prix-valeur { font-size: 2.8rem; line-height: 1; }
+        .devise { font-size: 1rem; margin-left: 5px; }
+        
+        .u-color { color: var(--primary); }
+        .p-color { color: var(--success); }
 
         .btn-reload {
-            position: absolute; top: 75px; right: 15px; z-index: 30;
+            position: absolute; top: 85px; right: 15px; z-index: 30;
             background: white; border: 1px solid #DDD; border-radius: 50%;
-            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+            width: 45px; height: 45px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
@@ -88,30 +89,28 @@
     </div>
 
     <div class="result-panel">
-        <div class="label">Désignation de l'article</div>
-        <div id="res-nom" class="designation">EN ATTENTE...</div>
+        <div class="label">Article détecté</div>
+        <div id="res-nom" class="designation">PRÊT AU SCAN...</div>
 
-        <div class="prices-grid">
-            <!-- PRIX UNITE -->
-            <div class="price-box">
+        <div class="prices-row">
+            <div class="price-item">
                 <div class="label">Prix Unité</div>
-                <div class="prix-container">
-                    <span id="res-prix" class="val-u">0.00</span>
+                <div class="prix-container u-color">
+                    <span id="res-prix" class="prix-valeur">0.00</span>
                     <span class="devise">DA</span>
                 </div>
             </div>
-
-            <!-- PRIX PACK -->
-            <div class="price-box" style="border-color: var(--success);">
+            <div style="width: 1px; height: 50px; background: #EEE;"></div>
+            <div class="price-item">
                 <div class="label" style="color: var(--success);">Prix Pack</div>
-                <div class="prix-container">
-                    <span id="res-prix-pack" class="val-p">---</span>
+                <div class="prix-container p-color">
+                    <span id="res-prix-pack" class="prix-valeur">---</span>
                     <span class="devise">DA</span>
                 </div>
             </div>
         </div>
         
-        <div id="res-code" style="font-size:10px; color:#BBB; margin-top:5px; font-family: monospace;">SCANNEZ UN CODE BARRE</div>
+        <div id="res-code" style="font-size:10px; color:#CCC; margin-top:15px;">MULTI-FORMAT ACTIF</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com"></audio>
@@ -121,17 +120,16 @@
         let dernierCode = "";
         let tempsDernierScan = 0;
 
-        // Chargement du catalogue
-        fetch('produits.json')
-            .then(res => res.json())
-            .then(data => { catalogue = data.produits; })
-            .catch(err => console.error("Erreur de chargement JSON:", err));
+        fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
 
         Quagga.init({
             inputStream: {
-                name: "Live", type: "LiveStream",
+                name: "Live", 
+                type: "LiveStream",
                 target: document.querySelector('#interactive'),
-                constraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
+                constraints: { 
+                    facingMode: "environment" // On laisse le navigateur choisir la meilleure résolution par défaut
+                },
             },
             decoder: {
                 readers: [
@@ -139,10 +137,9 @@
                     "code_39_reader", "upc_reader", "upc_e_reader"
                 ]
             },
-            locate: true,
-            halfSample: true
+            locate: true
         }, function(err) {
-            if (err) { alert("Erreur Caméra: " + err); return; }
+            if (err) { console.error(err); return; }
             Quagga.start();
         });
 
@@ -150,30 +147,25 @@
             let code = result.codeResult.code;
             let now = Date.now();
 
-            // Anti-doublon (2.5 secondes)
             if (code === dernierCode && (now - tempsDernierScan) < 2500) return;
             
             dernierCode = code;
             tempsDernierScan = now;
 
-            // Signal sonore et vibreur
             document.getElementById('audioBip').play().catch(()=>{});
             if(navigator.vibrate) navigator.vibrate(60);
 
-            // Recherche dans le catalogue
             const p = catalogue.find(item => item.codebarre === code);
-            
             if (p) {
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix;
-                // Affiche le prix pack s'il existe, sinon affiche "---"
                 document.getElementById('res-prix-pack').innerText = p.prix_pack ? p.prix_pack : "---";
-                document.getElementById('res-code').innerText = "FORMAT: " + result.codeResult.format + " | CODE: " + code;
+                document.getElementById('res-code').innerText = "CODE: " + code;
             } else {
-                document.getElementById('res-nom').innerText = "ARTICLE NON RÉPERTORIÉ";
+                document.getElementById('res-nom').innerText = "ARTICLE INCONNU";
                 document.getElementById('res-prix').innerText = "---";
                 document.getElementById('res-prix-pack').innerText = "---";
-                document.getElementById('res-code').innerText = "CODE INCONNU: " + code;
+                document.getElementById('res-code').innerText = "ID: " + code;
             }
         });
     </script>
