@@ -2,138 +2,64 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CaisseKom - Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CaisseKom - Scanner Multi-Format</title>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <style>
         :root {
-            --primary: #29318C; /* Bleu CaisseKom */
-            --accent: #E53139;  /* Rouge CaisseKom */
-            --bg: #FFFFFF;      /* Fond Blanc */
-            --text: #000000;    /* Texte Noir */
-            --gray: #666666;
+            --primary: #29318C; 
+            --accent: #E53139;  
+            --bg: #FFFFFF;
         }
 
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { 
+            height: 100%; height: -webkit-fill-available; 
+            margin: 0; padding: 0; overflow: hidden; 
+            background: var(--bg);
+            font-family: -apple-system, system-ui, sans-serif;
         }
+        body { display: flex; flex-direction: column; }
 
-        /* Header avec le Logo Officiel */
         header {
-            padding: 10px 15px;
-            text-align: center;
-            background: #f8f8f8;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            height: 70px; display: flex; align-items: center; justify-content: center;
+            background: #FFFFFF; border-bottom: 1px solid #EEE; flex-shrink: 0; z-index: 20;
         }
-        header img {
-            height: 20px; /* Taille du logo */
-            width: auto;
-        }
-        .logo {
-            font-weight: bold;
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-            color: var(--primary);
-        }
-        .logo span { color: var(--accent); }
+        header img { height: 40px; width: auto; object-fit: contain; }
+        .logo-fallback { font-weight: 900; font-size: 1.4rem; color: var(--primary); display: none; }
+        .logo-fallback span { color: var(--accent); }
 
-        /* Zone de Scan */
-        #interactive.viewport {
-            flex: 1;
-            position: relative;
-            background: #000; /* Garder noir pour le contraste vidéo */
-            overflow: hidden;
-        }
-        #interactive.viewport > video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        canvas.drawingBuffer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+        #interactive.viewport { flex: 1; position: relative; background: #000; overflow: hidden; }
+        #interactive.viewport > video { width: 100%; height: 100%; object-fit: cover; }
 
-        /* Viseur Laser Rouge */
         .laser-container {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%; height: 100px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            z-index: 10;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 75%; height: 120px; border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 12px; z-index: 5;
         }
         .laser-line {
-            position: absolute;
-            top: 50%; left: 5%;
-            width: 90%; height: 2px;
-            background: var(--accent); /* Rouge */
-            box-shadow: 0 0 10px var(--accent);
-            animation: blink 1s infinite;
+            position: absolute; top: 50%; left: 5%; width: 90%; height: 2px;
+            background: var(--accent); box-shadow: 0 0 10px var(--accent);
+            animation: blink 0.8s infinite;
         }
 
-        /* Panneau de Résultats (Fond Blanc) */
         .result-panel {
-            background: var(--bg);
-            padding: 20px;
-            border-top: 1px solid #eee;
-            text-align: center;
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
-        }
-        .label {
-            font-size: 0.7rem;
-            color: var(--gray);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 3px;
-        }
-        .designation {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 10px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .prix-container {
-            display: inline-flex;
-            align-items: baseline;
-            gap: 5px;
-        }
-        .prix-valeur {
-            font-size: 4.5rem;
-            font-weight: 900;
-            color: var(--accent); /* ROUGE */
-            line-height: 1;
-        }
-        .devise {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: var(--accent);
+            background: #FFFFFF; padding: 20px; text-align: center;
+            border-top: 2px solid var(--primary); flex-shrink: 0;
+            min-height: 200px; display: flex; flex-direction: column; justify-content: center;
         }
 
-        /* Bouton Switch Caméra (Discret) */
-        .btn-switch {
-            position: absolute;
-            top: 60px; right: 15px;
-            z-index: 100;
-            background: rgba(255,255,255,0.7);
-            border: 1px solid #ccc;
-            color: #333;
-            padding: 10px;
-            border-radius: 50%;
-            font-size: 1rem;
+        .label { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+        .designation { font-size: 1.5rem; font-weight: bold; color: #222; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .prix-container { color: var(--accent); font-weight: 900; display: flex; align-items: baseline; justify-content: center; }
+        .prix-valeur { font-size: 4.5rem; line-height: 1; }
+        .devise { font-size: 1.5rem; margin-left: 10px; }
+
+        .btn-reload {
+            position: absolute; top: 85px; right: 15px; z-index: 30;
+            background: white; border: 1px solid #DDD; border-radius: 50%;
+            width: 45px; height: 45px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -142,10 +68,11 @@
 <body>
 
     <header>
-        <img src="logo.png" alt="Logo"> <div class="logo">CAISSE<span>KOM</span> - Scanner</div>
+        <img src="logo.png" alt="Logo" onerror="this.style.display='none'; document.querySelector('.logo-fallback').style.display='block';">
+        <div class="logo-fallback">CAISSE<span>KOM</span></div>
     </header>
 
-    <button class="btn-switch" onclick="location.reload()">🔄</button>
+    <button class="btn-reload" onclick="location.reload()">🔄</button>
 
     <div id="interactive" class="viewport">
         <div class="laser-container">
@@ -154,16 +81,16 @@
     </div>
 
     <div class="result-panel">
-        <div class="label">Article</div>
+        <div class="label">Article détecté</div>
         <div id="res-nom" class="designation">PRÊT AU SCAN...</div>
 
-        <div class="label" style="margin-top:5px;">Prix de vente</div>
+        <div class="label">Prix de vente</div>
         <div class="prix-container">
             <span id="res-prix" class="prix-valeur">0.00</span>
             <span class="devise">DA</span>
         </div>
         
-        <div id="res-code" style="margin-top:10px; font-size:0.6rem; color:#aaa;">ID: --</div>
+        <div id="res-code" style="font-size:10px; color:#CCC; margin-top:10px;">MULTI-FORMAT ACTIF</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
@@ -173,39 +100,41 @@
         let dernierCode = "";
         let tempsDernierScan = 0;
 
-        // Chargement JSON
         fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
 
-        // Configuration Quagga (Optimisé Codes-Barres Produits)
         Quagga.init({
             inputStream: {
-                name: "Live",
-                type: "LiveStream",
+                name: "Live", type: "LiveStream",
                 target: document.querySelector('#interactive'),
-                constraints: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: "environment"
-                },
+                constraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
             },
             decoder: {
-                readers: ["ean_reader", "code_128_reader", "ean_8_reader", "upc_reader"]
+                // ACTIVATION DE TOUS LES TYPES DE CODES BARRES PROFESSIONNELS
+                readers: [
+                    "ean_reader",           /* EAN-13 (Standard produits) */
+                    "ean_8_reader",         /* EAN-8 (Petits produits) */
+                    "code_128_reader",      /* Code 128 (Logistique/Cartons) */
+                    "code_39_reader",       /* Code 39 (Industrie) */
+                    "upc_reader",           /* UPC-A (Standard USA) */
+                    "upc_e_reader",         /* UPC-E (Petit standard USA) */
+                    "codabar_reader"        /* Codabar (Bibliothèques/Sang) */
+                ]
             },
-            locate: true // Aide à trouver le code-barre
+            locate: true,
+            halfSample: true // Performance accrue sur les vieux téléphones
         }, function(err) {
-            if (err) { alert("Erreur Caméra: " + err); return; }
+            if (err) return;
             Quagga.start();
         });
 
         Quagga.onDetected(function(result) {
             let code = result.codeResult.code;
-            const maintenant = Date.now();
+            let now = Date.now();
 
-            // Délai de 2 secondes avant de re-scanner le même code
-            if (code === dernierCode && (maintenant - tempsDernierScan) < 2000) return;
-
+            if (code === dernierCode && (now - tempsDernierScan) < 2500) return;
+            
             dernierCode = code;
-            tempsDernierScan = maintenant;
+            tempsDernierScan = now;
 
             document.getElementById('audioBip').play().catch(()=>{});
             if(navigator.vibrate) navigator.vibrate(60);
@@ -216,7 +145,7 @@
                 document.getElementById('res-prix').innerText = p.prix;
                 document.getElementById('res-code').innerText = "CODE: " + code;
             } else {
-                document.getElementById('res-nom').innerText = "PRODUIT NON TROUVÉ";
+                document.getElementById('res-nom').innerText = "ARTICLE INCONNU";
                 document.getElementById('res-prix').innerText = "---";
                 document.getElementById('res-code').innerText = "ID: " + code;
             }
