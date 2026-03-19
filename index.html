@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CaisseKom - iOS Ultra Scan</title>
+    <title>CaisseKom - Scanner iOS Pro</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root { --bg: #000; --accent: #00FF41; }
@@ -16,13 +16,13 @@
         .prix { font-size: 4.5rem; font-weight: 900; color: var(--accent); margin: 5px 0; }
         .controls { position: absolute; top: 15px; right: 15px; z-index: 100; display: flex; gap: 10px; }
         .btn-ctrl {
-            background: rgba(0,0,0,0.7); border: 1px solid var(--accent); color: var(--accent);
-            width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent);
+            width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
         }
-        /* Ligne de guidage pour code-barres */
-        .guide {
-            position: absolute; top: 25vh; left: 10%; width: 80%; height: 2px;
-            background: var(--accent); box-shadow: 0 0 15px var(--accent); z-index: 5;
+        /* Guide visuel horizontal pour aider l'utilisateur iOS */
+        .guide-bar {
+            position: absolute; top: 25vh; left: 5%; width: 90%; height: 2px;
+            background: rgba(0, 255, 65, 0.6); box-shadow: 0 0 10px var(--accent); z-index: 10;
         }
     </style>
 </head>
@@ -33,13 +33,13 @@
         <button class="btn-ctrl" onclick="toggleTorch()">🔦</button>
     </div>
 
-    <div class="guide"></div>
+    <div class="guide-bar"></div>
     <div id="reader"></div>
 
     <div class="result-panel">
-        <div id="res-nom" style="font-size:1.4rem; font-weight:bold;">PRÊT (iOS OPTIMIZ)</div>
+        <div id="res-nom" style="font-size:1.4rem; font-weight:bold; color:#CCC;">PRÊT (MODE iPHONE)</div>
         <div class="prix"><span id="res-prix">0.00</span> DA</div>
-        <div id="res-info" style="font-size:0.7rem; color:#666;">SCANNEZ BIEN HORIZONTALEMENT</div>
+        <div id="res-info" style="font-size:0.8rem; color:#555;">RECOULEZ LE TÉLÉPHONE (20CM)</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
@@ -59,21 +59,22 @@
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix;
             } else {
-                document.getElementById('res-nom').innerText = "CODE: " + decodedText;
+                document.getElementById('res-nom').innerText = "CODE : " + decodedText;
             }
             if(navigator.vibrate) navigator.vibrate(60);
         }
 
-        async function launch(faceMode) {
+        async function startIOSScanner(faceMode) {
             if (html5QrCode) { await html5QrCode.stop(); }
-            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode = new Html5Qrcode("reader", { verbose: false });
 
             const config = { 
                 fps: 30, 
-                qrbox: { width: 320, height: 150 },
-                aspectRatio: 1.0,
-                // On force iOS à utiliser ses capacités natives de décodage
-                experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+                qrbox: { width: 350, height: 120 }, // Fente très large pour codes EAN
+                aspectRatio: 1.777778, // Forcer le 16:9 pour une meilleure vue
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true // UTILISE LE MOTEUR APPLE NATIF
+                },
                 formatsToSupport: [ 
                     Html5QrcodeSupportedFormats.EAN_13, 
                     Html5QrcodeSupportedFormats.CODE_128, 
@@ -81,33 +82,34 @@
                 ]
             };
 
-            // CONTRAINTES VIDÉO SPÉCIFIQUES POUR iPHONE
+            // CONTRAINTES CRUCIALES POUR iPHONE 12 PRO MAX
             const videoConstraints = {
                 facingMode: faceMode,
-                width: { min: 640, ideal: 1280, max: 1920 },
-                height: { min: 480, ideal: 720, max: 1080 },
-                focusMode: "continuous" // Très important pour les codes-barres
+                width: { min: 1280, ideal: 1920 }, // Haute def obligatoire pour les barres
+                height: { min: 720, ideal: 1080 },
+                focusMode: "continuous",
+                whiteBalanceMode: "continuous"
             };
 
             html5QrCode.start({ facingMode: faceMode }, { ...config, videoConstraints }, onScanSuccess)
             .catch(() => {
-                // Repli si le mode environment strict échoue
+                // Fallback si le mode strict échoue
                 html5QrCode.start(faceMode, config, onScanSuccess);
             });
         }
 
         function switchCamera() {
             currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-            launch(currentFacingMode);
+            startIOSScanner(currentFacingMode);
         }
 
         function toggleTorch() {
             isTorchOn = !isTorchOn;
             html5QrCode.applyVideoConstraints({ advanced: [{ torch: isTorchOn }] })
-            .catch(() => alert("Le flash nécessite la caméra arrière sur iOS"));
+            .catch(() => alert("Le flash nécessite la caméra arrière"));
         }
 
-        window.addEventListener('load', () => launch("environment"));
+        window.addEventListener('load', () => startIOSScanner("environment"));
     </script>
 </body>
 </html>
