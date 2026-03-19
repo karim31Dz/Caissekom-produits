@@ -1,25 +1,183 @@
-{
-  "produits": [
-    {
-      "codebarre": "6130001000123",
-      "designation": "EAU MINÉRALE 1.5L",
-      "prix": "35",
-      "prix_pack": "200",
-      "qty_pack": "6"
-    },
-    {
-      "codebarre": "6130002000456",
-      "designation": "COCA COLA CANETTE 33CL",
-      "prix": "70",
-      "prix_pack": "1650",
-      "qty_pack": "24"
-    },
-    {
-      "codebarre": "3017620422003",
-      "designation": "NUTELLA 400G",
-      "prix": "850",
-      "prix_pack": "9800",
-      "qty_pack": "12"
-    }
-  ]
-}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CaisseKom - Scanner Multi-Format</title>
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+    <style>
+        :root {
+            --primary: #29318C; 
+            --accent: #E53139;  
+            --pack: #28a745;
+            --bg: #FFFFFF;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { 
+            height: 100%; height: -webkit-fill-available; 
+            margin: 0; padding: 0; overflow: hidden; 
+            background: var(--bg);
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+        body { display: flex; flex-direction: column; }
+
+        header {
+            height: 70px; display: flex; align-items: center; justify-content: center;
+            background: #FFFFFF; border-bottom: 1px solid #EEE; flex-shrink: 0; z-index: 20;
+        }
+        header img { height: 40px; width: auto; object-fit: contain; }
+        .logo-fallback { font-weight: 900; font-size: 1.4rem; color: var(--primary); display: none; }
+        .logo-fallback span { color: var(--accent); }
+
+        #interactive.viewport { flex: 1; position: relative; background: #000; overflow: hidden; }
+        #interactive.viewport > video { width: 100%; height: 100%; object-fit: cover; }
+
+        .laser-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 75%; height: 120px; border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 12px; z-index: 5;
+        }
+        .laser-line {
+            position: absolute; top: 50%; left: 5%; width: 90%; height: 2px;
+            background: var(--accent); box-shadow: 0 0 10px var(--accent);
+            animation: blink 0.8s infinite;
+        }
+
+        .result-panel {
+            background: #FFFFFF; padding: 15px; text-align: center;
+            border-top: 2px solid var(--primary); flex-shrink: 0;
+            min-height: 250px; display: flex; flex-direction: column; justify-content: center;
+        }
+
+        .label { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 1px; font-weight: bold;}
+        .designation { font-size: 1.4rem; font-weight: bold; color: #222; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        .prix-container { color: var(--accent); font-weight: 900; display: flex; align-items: baseline; justify-content: center; }
+        .prix-valeur { font-size: 3.5rem; line-height: 1; }
+        
+        .prix-pack-container { color: var(--pack); font-weight: 800; display: flex; align-items: baseline; justify-content: center; margin-top: 5px; }
+        .prix-pack-valeur { font-size: 2.2rem; line-height: 1; }
+        
+        /* Badge quantité pack */
+        .qty-badge { font-size: 0.9rem; background: var(--pack); color: white; padding: 2px 8px; border-radius: 5px; margin-right: 10px; vertical-align: middle; display: none; }
+        
+        .devise { font-size: 1.2rem; margin-left: 8px; }
+
+        .btn-reload {
+            position: absolute; top: 85px; right: 15px; z-index: 30;
+            background: white; border: 1px solid #DDD; border-radius: 50%;
+            width: 45px; height: 45px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="logo.png" alt="Logo" onerror="this.style.display='none'; document.querySelector('.logo-fallback').style.display='block';">
+        <div class="logo-fallback">CAISSE<span>KOM</span></div>
+    </header>
+
+    <button class="btn-reload" onclick="location.reload()">🔄</button>
+
+    <div id="interactive" class="viewport">
+        <div class="laser-container">
+            <div class="laser-line"></div>
+        </div>
+    </div>
+
+    <div class="result-panel">
+        <div class="label">Article détecté</div>
+        <div id="res-nom" class="designation">PRÊT AU SCAN...</div>
+
+        <div class="label">Prix Unitaire</div>
+        <div class="prix-container">
+            <span id="res-prix" class="prix-valeur">0.00</span>
+            <span class="devise">DA</span>
+        </div>
+
+        <div id="label-pack" class="label" style="margin-top:10px;">Prix Pack</div>
+        <div class="prix-pack-container">
+            <span id="res-qty" class="qty-badge"></span>
+            <span id="res-prix-pack" class="prix-pack-valeur">---</span>
+            <span class="devise">DA</span>
+        </div>
+        
+        <div id="res-code" style="font-size:10px; color:#CCC; margin-top:10px;">MULTI-FORMAT ACTIF</div>
+    </div>
+
+    <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
+
+    <script>
+        let catalogue = [];
+        let dernierCode = "";
+        let tempsDernierScan = 0;
+
+        fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
+
+        Quagga.init({
+            inputStream: {
+                name: "Live", type: "LiveStream",
+                target: document.querySelector('#interactive'),
+                constraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
+            },
+            decoder: {
+                readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader"]
+            },
+            locate: true,
+            halfSample: true 
+        }, function(err) {
+            if (err) return;
+            Quagga.start();
+        });
+
+        Quagga.onDetected(function(result) {
+            let code = result.codeResult.code;
+            let now = Date.now();
+
+            if (code === dernierCode && (now - tempsDernierScan) < 2500) return;
+            
+            dernierCode = code;
+            tempsDernierScan = now;
+
+            document.getElementById('audioBip').play().catch(()=>{});
+            if(navigator.vibrate) navigator.vibrate(60);
+
+            const p = catalogue.find(item => item.codebarre === code);
+            
+            const resNom = document.getElementById('res-nom');
+            const resPrix = document.getElementById('res-prix');
+            const resPrixPack = document.getElementById('res-prix-pack');
+            const resQty = document.getElementById('res-qty');
+            const labelPack = document.getElementById('label-pack');
+
+            if (p) {
+                resNom.innerText = p.designation;
+                resPrix.innerText = p.prix;
+                resPrixPack.innerText = p.prix_pack ? p.prix_pack : "---";
+                
+                // Gestion de la quantité par pack
+                if(p.qty_pack) {
+                    resQty.innerText = "x" + p.qty_pack;
+                    resQty.style.display = "inline-block";
+                    labelPack.innerText = "Prix Pack (" + p.qty_pack + " pcs)";
+                } else {
+                    resQty.style.display = "none";
+                    labelPack.innerText = "Prix Pack";
+                }
+
+                document.getElementById('res-code').innerText = "CODE: " + code;
+            } else {
+                resNom.innerText = "ARTICLE INCONNU";
+                resPrix.innerText = "---";
+                resPrixPack.innerText = "---";
+                resQty.style.display = "none";
+                document.getElementById('res-code').innerText = "ID: " + code;
+            }
+        });
+    </script>
+</body>
+</html>
