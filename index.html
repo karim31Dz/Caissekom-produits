@@ -59,7 +59,6 @@
         .prix-pack-container { color: var(--pack); font-weight: 800; display: flex; align-items: baseline; justify-content: center; margin-top: 5px; }
         .prix-pack-valeur { font-size: 2.2rem; line-height: 1; }
         
-        /* Badge quantité pack */
         .qty-badge { font-size: 0.9rem; background: var(--pack); color: white; padding: 2px 8px; border-radius: 5px; margin-right: 10px; vertical-align: middle; display: none; }
         
         .devise { font-size: 1.2rem; margin-left: 8px; }
@@ -122,7 +121,7 @@
             inputStream: {
                 name: "Live", type: "LiveStream",
                 target: document.querySelector('#interactive'),
-                constraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
+                constraints: { facingMode: "environment" },
             },
             decoder: {
                 readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader"]
@@ -159,7 +158,6 @@
                 resPrix.innerText = p.prix;
                 resPrixPack.innerText = p.prix_pack ? p.prix_pack : "---";
                 
-                // Gestion de la quantité par pack
                 if(p.qty_pack) {
                     resQty.innerText = "x" + p.qty_pack;
                     resQty.style.display = "inline-block";
@@ -168,7 +166,6 @@
                     resQty.style.display = "none";
                     labelPack.innerText = "Prix Pack";
                 }
-
                 document.getElementById('res-code').innerText = "CODE: " + code;
             } else {
                 resNom.innerText = "ARTICLE INCONNU";
