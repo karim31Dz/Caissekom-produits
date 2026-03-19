@@ -3,46 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CaisseKom - Scanner Ultra</title>
+    <title>CaisseKom - Scanner</title>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <style>
-        :root { --accent: #00FF41; --bg: #000; }
-        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; overflow: hidden; }
-        
-        /* Zone Caméra Vidéo */
-        #interactive.viewport { width: 100%; height: 50vh; position: relative; overflow: hidden; }
-        #interactive.viewport > video { width: 100%; height: 100%; object-fit: cover; }
+        :root {
+            --primary: #29318C; /* Bleu CaisseKom */
+            --accent: #E53139;  /* Rouge CaisseKom */
+            --bg: #FFFFFF;      /* Fond Blanc */
+            --text: #000000;    /* Texte Noir */
+            --gray: #666666;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header avec le Logo Officiel */
+        header {
+            padding: 10px 15px;
+            text-align: center;
+            background: #f8f8f8;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        header img {
+            height: 20px; /* Taille du logo */
+            width: auto;
+        }
+        .logo {
+            font-weight: bold;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            color: var(--primary);
+        }
+        .logo span { color: var(--accent); }
+
+        /* Zone de Scan */
+        #interactive.viewport {
+            flex: 1;
+            position: relative;
+            background: #000; /* Garder noir pour le contraste vidéo */
+            overflow: hidden;
+        }
+        #interactive.viewport > video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
         canvas.drawingBuffer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
 
-        .result-panel {
-            height: 50vh; background: #111; border-top: 2px solid var(--accent);
-            padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center;
+        /* Viseur Laser Rouge */
+        .laser-container {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; height: 100px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            z-index: 10;
         }
-        .prix { font-size: 4.5rem; font-weight: 900; color: var(--accent); margin: 5px 0; }
-        
-        .btn-switch {
-            position: absolute; top: 15px; right: 15px; z-index: 100;
-            background: rgba(0,0,0,0.7); border: 1px solid var(--accent); color: var(--accent);
-            padding: 12px; border-radius: 50%; font-size: 1.2rem;
+        .laser-line {
+            position: absolute;
+            top: 50%; left: 5%;
+            width: 90%; height: 2px;
+            background: var(--accent); /* Rouge */
+            box-shadow: 0 0 10px var(--accent);
+            animation: blink 1s infinite;
         }
 
-        /* Ligne de visée */
-        .laser {
-            position: absolute; top: 25vh; left: 10%; width: 80%; height: 2px;
-            background: var(--accent); box-shadow: 0 0 10px var(--accent); z-index: 5;
+        /* Panneau de Résultats (Fond Blanc) */
+        .result-panel {
+            background: var(--bg);
+            padding: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
         }
+        .label {
+            font-size: 0.7rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 3px;
+        }
+        .designation {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .prix-container {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+        .prix-valeur {
+            font-size: 4.5rem;
+            font-weight: 900;
+            color: var(--accent); /* ROUGE */
+            line-height: 1;
+        }
+        .devise {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        /* Bouton Switch Caméra (Discret) */
+        .btn-switch {
+            position: absolute;
+            top: 60px; right: 15px;
+            z-index: 100;
+            background: rgba(255,255,255,0.7);
+            border: 1px solid #ccc;
+            color: #333;
+            padding: 10px;
+            border-radius: 50%;
+            font-size: 1rem;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
 <body>
 
+    <header>
+        <img src="logo.png" alt="Logo"> <div class="logo">CAISSE<span>KOM</span> - Scanner</div>
+    </header>
+
     <button class="btn-switch" onclick="location.reload()">🔄</button>
-    <div class="laser"></div>
-    <div id="interactive" class="viewport"></div>
+
+    <div id="interactive" class="viewport">
+        <div class="laser-container">
+            <div class="laser-line"></div>
+        </div>
+    </div>
 
     <div class="result-panel">
-        <div id="res-nom" style="font-size:1.4rem; font-weight:bold;">SCANNEZ UN PRODUIT</div>
-        <div class="prix"><span id="res-prix">0.00</span> DA</div>
-        <div id="res-code" style="font-size:0.8rem; color:#555;">Moteur Quagga Engine Actif</div>
+        <div class="label">Article</div>
+        <div id="res-nom" class="designation">PRÊT AU SCAN...</div>
+
+        <div class="label" style="margin-top:5px;">Prix de vente</div>
+        <div class="prix-container">
+            <span id="res-prix" class="prix-valeur">0.00</span>
+            <span class="devise">DA</span>
+        </div>
+        
+        <div id="res-code" style="margin-top:10px; font-size:0.6rem; color:#aaa;">ID: --</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
@@ -52,10 +173,10 @@
         let dernierCode = "";
         let tempsDernierScan = 0;
 
-        // 1. Chargement JSON
+        // Chargement JSON
         fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
 
-        // 2. Configuration Quagga (Optimisé pour EAN-13 de produits)
+        // Configuration Quagga (Optimisé Codes-Barres Produits)
         Quagga.init({
             inputStream: {
                 name: "Live",
@@ -64,40 +185,40 @@
                 constraints: {
                     width: { ideal: 1280 },
                     height: { ideal: 720 },
-                    facingMode: "environment" // Force caméra arrière
+                    facingMode: "environment"
                 },
             },
             decoder: {
-                readers: ["ean_reader", "code_128_reader", "ean_8_reader"] // Les formats de vos produits
+                readers: ["ean_reader", "code_128_reader", "ean_8_reader", "upc_reader"]
             },
-            locate: true // Aide à trouver le code-barre dans l'image
+            locate: true // Aide à trouver le code-barre
         }, function(err) {
-            if (err) { console.log(err); return; }
+            if (err) { alert("Erreur Caméra: " + err); return; }
             Quagga.start();
         });
 
-        // 3. Détection du code
         Quagga.onDetected(function(result) {
             let code = result.codeResult.code;
             const maintenant = Date.now();
 
-            if (code === dernierCode && (maintenant - tempsDernierScan) < 3000) return;
+            // Délai de 2 secondes avant de re-scanner le même code
+            if (code === dernierCode && (maintenant - tempsDernierScan) < 2000) return;
 
             dernierCode = code;
             tempsDernierScan = maintenant;
 
-            // Bip et Vibration
             document.getElementById('audioBip').play().catch(()=>{});
-            if(navigator.vibrate) navigator.vibrate(80);
+            if(navigator.vibrate) navigator.vibrate(60);
 
-            // Recherche
             const p = catalogue.find(item => item.codebarre === code);
             if (p) {
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix;
+                document.getElementById('res-code').innerText = "CODE: " + code;
             } else {
-                document.getElementById('res-nom').innerText = "CODE : " + code;
+                document.getElementById('res-nom').innerText = "PRODUIT NON TROUVÉ";
                 document.getElementById('res-prix').innerText = "---";
+                document.getElementById('res-code').innerText = "ID: " + code;
             }
         });
     </script>
