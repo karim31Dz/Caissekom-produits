@@ -3,113 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CaisseKom - Scanner iOS Pro</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <title>CaisseKom - Scanner Ultra</title>
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <style>
-        :root { --bg: #000; --accent: #00FF41; }
-        body { background: var(--bg); color: white; font-family: -apple-system, sans-serif; margin: 0; overflow: hidden; }
-        #reader { width: 100%; height: 50vh; background: #000; }
+        :root { --accent: #00FF41; --bg: #000; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; overflow: hidden; }
+        
+        /* Zone Caméra Vidéo */
+        #interactive.viewport { width: 100%; height: 50vh; position: relative; overflow: hidden; }
+        #interactive.viewport > video { width: 100%; height: 100%; object-fit: cover; }
+        canvas.drawingBuffer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+
         .result-panel {
             height: 50vh; background: #111; border-top: 2px solid var(--accent);
             padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center;
         }
         .prix { font-size: 4.5rem; font-weight: 900; color: var(--accent); margin: 5px 0; }
-        .controls { position: absolute; top: 15px; right: 15px; z-index: 100; display: flex; gap: 10px; }
-        .btn-ctrl {
-            background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent);
-            width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        
+        .btn-switch {
+            position: absolute; top: 15px; right: 15px; z-index: 100;
+            background: rgba(0,0,0,0.7); border: 1px solid var(--accent); color: var(--accent);
+            padding: 12px; border-radius: 50%; font-size: 1.2rem;
         }
-        /* Guide visuel horizontal pour aider l'utilisateur iOS */
-        .guide-bar {
-            position: absolute; top: 25vh; left: 5%; width: 90%; height: 2px;
-            background: rgba(0, 255, 65, 0.6); box-shadow: 0 0 10px var(--accent); z-index: 10;
+
+        /* Ligne de visée */
+        .laser {
+            position: absolute; top: 25vh; left: 10%; width: 80%; height: 2px;
+            background: var(--accent); box-shadow: 0 0 10px var(--accent); z-index: 5;
         }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <button class="btn-ctrl" onclick="switchCamera()">🔄</button>
-        <button class="btn-ctrl" onclick="toggleTorch()">🔦</button>
-    </div>
-
-    <div class="guide-bar"></div>
-    <div id="reader"></div>
+    <button class="btn-switch" onclick="location.reload()">🔄</button>
+    <div class="laser"></div>
+    <div id="interactive" class="viewport"></div>
 
     <div class="result-panel">
-        <div id="res-nom" style="font-size:1.4rem; font-weight:bold; color:#CCC;">PRÊT (MODE iPHONE)</div>
+        <div id="res-nom" style="font-size:1.4rem; font-weight:bold;">SCANNEZ UN PRODUIT</div>
         <div class="prix"><span id="res-prix">0.00</span> DA</div>
-        <div id="res-info" style="font-size:0.8rem; color:#555;">RECOULEZ LE TÉLÉPHONE (20CM)</div>
+        <div id="res-code" style="font-size:0.8rem; color:#555;">Moteur Quagga Engine Actif</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
 
     <script>
         let catalogue = [];
-        let html5QrCode;
-        let currentFacingMode = "environment";
-        let isTorchOn = false;
+        let dernierCode = "";
+        let tempsDernierScan = 0;
 
+        // 1. Chargement JSON
         fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
 
-        function onScanSuccess(decodedText) {
-            const p = catalogue.find(item => item.codebarre === decodedText);
+        // 2. Configuration Quagga (Optimisé pour EAN-13 de produits)
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#interactive'),
+                constraints: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: "environment" // Force caméra arrière
+                },
+            },
+            decoder: {
+                readers: ["ean_reader", "code_128_reader", "ean_8_reader"] // Les formats de vos produits
+            },
+            locate: true // Aide à trouver le code-barre dans l'image
+        }, function(err) {
+            if (err) { console.log(err); return; }
+            Quagga.start();
+        });
+
+        // 3. Détection du code
+        Quagga.onDetected(function(result) {
+            let code = result.codeResult.code;
+            const maintenant = Date.now();
+
+            if (code === dernierCode && (maintenant - tempsDernierScan) < 3000) return;
+
+            dernierCode = code;
+            tempsDernierScan = maintenant;
+
+            // Bip et Vibration
             document.getElementById('audioBip').play().catch(()=>{});
+            if(navigator.vibrate) navigator.vibrate(80);
+
+            // Recherche
+            const p = catalogue.find(item => item.codebarre === code);
             if (p) {
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix;
             } else {
-                document.getElementById('res-nom').innerText = "CODE : " + decodedText;
+                document.getElementById('res-nom').innerText = "CODE : " + code;
+                document.getElementById('res-prix').innerText = "---";
             }
-            if(navigator.vibrate) navigator.vibrate(60);
-        }
-
-        async function startIOSScanner(faceMode) {
-            if (html5QrCode) { await html5QrCode.stop(); }
-            html5QrCode = new Html5Qrcode("reader", { verbose: false });
-
-            const config = { 
-                fps: 30, 
-                qrbox: { width: 350, height: 120 }, // Fente très large pour codes EAN
-                aspectRatio: 1.777778, // Forcer le 16:9 pour une meilleure vue
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true // UTILISE LE MOTEUR APPLE NATIF
-                },
-                formatsToSupport: [ 
-                    Html5QrcodeSupportedFormats.EAN_13, 
-                    Html5QrcodeSupportedFormats.CODE_128, 
-                    Html5QrcodeSupportedFormats.QR_CODE 
-                ]
-            };
-
-            // CONTRAINTES CRUCIALES POUR iPHONE 12 PRO MAX
-            const videoConstraints = {
-                facingMode: faceMode,
-                width: { min: 1280, ideal: 1920 }, // Haute def obligatoire pour les barres
-                height: { min: 720, ideal: 1080 },
-                focusMode: "continuous",
-                whiteBalanceMode: "continuous"
-            };
-
-            html5QrCode.start({ facingMode: faceMode }, { ...config, videoConstraints }, onScanSuccess)
-            .catch(() => {
-                // Fallback si le mode strict échoue
-                html5QrCode.start(faceMode, config, onScanSuccess);
-            });
-        }
-
-        function switchCamera() {
-            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-            startIOSScanner(currentFacingMode);
-        }
-
-        function toggleTorch() {
-            isTorchOn = !isTorchOn;
-            html5QrCode.applyVideoConstraints({ advanced: [{ torch: isTorchOn }] })
-            .catch(() => alert("Le flash nécessite la caméra arrière"));
-        }
-
-        window.addEventListener('load', () => startIOSScanner("environment"));
+        });
     </script>
 </body>
 </html>
