@@ -3,31 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CaisseKom Scan Arrière</title>
+    <title>CaisseKom Scan Pro</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        :root { --bg: #000; --card: #111; --accent: #00FF41; }
-        body { background: var(--bg); color: white; font-family: -apple-system, sans-serif; margin: 0; overflow: hidden; }
-        
-        /* Zone Caméra */
+        :root { --bg: #000; --accent: #00FF41; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; overflow: hidden; }
         #reader { width: 100%; height: 55vh; background: #000; }
-
-        /* Zone Infos */
         .result-panel {
-            height: 45vh; background: var(--card); border-top: 2px solid var(--accent);
+            height: 45vh; background: #111; border-top: 2px solid var(--accent);
             padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center;
         }
-        .designation { font-size: 1.6rem; font-weight: bold; margin-bottom: 10px; color: #EEE; }
-        .prix { font-size: 4.5rem; font-weight: 900; color: var(--accent); }
-        .devise { font-size: 1.5rem; }
-
-        /* Animation de scan */
+        .designation { font-size: 1.5rem; font-weight: bold; color: #EEE; }
+        .prix { font-size: 4rem; font-weight: 900; color: var(--accent); margin: 10px 0; }
         .scan-line {
             position: absolute; top: 27vh; left: 15%; width: 70%; height: 2px;
             background: var(--accent); box-shadow: 0 0 15px var(--accent); z-index: 5;
             animation: scanAnim 2s infinite ease-in-out;
         }
-        @keyframes scanAnim { 0%, 100% { transform: translateY(-60px); opacity: 0.2; } 50% { transform: translateY(60px); opacity: 1; } }
+        @keyframes scanAnim { 0%, 100% { transform: translateY(-50px); opacity: 0.2; } 50% { transform: translateY(50px); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -36,75 +29,68 @@
     <div id="reader"></div>
 
     <div class="result-panel">
-        <div style="color: #666; font-size: 0.7rem; letter-spacing: 2px;">PRODUIT DÉTECTÉ</div>
-        <div id="res-nom" class="designation">EN ATTENTE...</div>
-        <div class="prix"><span id="res-prix">0.00</span><span class="devise"> DA</span></div>
-        <div id="res-code" style="margin-top:10px; font-size:0.7rem; color:#444;">CAMÉRA ARRIÈRE ACTIVE</div>
+        <div id="res-nom" class="designation">PRÊT AU SCAN</div>
+        <div class="prix"><span id="res-prix">0.00</span> DA</div>
+        <div id="res-info" style="font-size:0.7rem; color:#444;">CAMÉRA ARRIÈRE FORCÉE</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
 
     <script>
         let catalogue = [];
-        let dernierCode = "";
-        let tempsDernierScan = 0;
         let html5QrCode;
 
-        // 1. Chargement du catalogue
         fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
 
         function onScanSuccess(decodedText) {
-            const maintenant = Date.now();
-            if (decodedText === dernierCode && (maintenant - tempsDernierScan) < 2500) return;
-
-            dernierCode = decodedText;
-            tempsDernierScan = maintenant;
-
-            document.getElementById('audioBip').play().catch(()=>{});
-            if(navigator.vibrate) navigator.vibrate(80);
-
             const p = catalogue.find(item => item.codebarre === decodedText);
+            document.getElementById('audioBip').play().catch(()=>{});
             if (p) {
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix;
             } else {
-                document.getElementById('res-nom').innerText = "NON RÉFÉRENCÉ";
+                document.getElementById('res-nom').innerText = "NON TROUVÉ";
                 document.getElementById('res-prix').innerText = "---";
             }
-            document.getElementById('res-code').innerText = "CODE: " + decodedText;
         }
 
-        // 2. LANCEMENT FORCÉ DE LA CAMÉRA ARRIÈRE
-        function startCamera() {
+        async function startBackCamera() {
             html5QrCode = new Html5Qrcode("reader");
             
-            const config = { 
-                fps: 30, 
-                qrbox: { width: 300, height: 150 },
-                experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-            };
+            try {
+                // 1. On récupère la liste des caméras disponibles
+                const devices = await Html5Qrcode.getCameras();
+                
+                if (devices && devices.length) {
+                    // 2. On cherche la caméra qui contient "back" ou "rear" dans son nom
+                    let backCameraId = devices.find(device => 
+                        device.label.toLowerCase().includes("back") || 
+                        device.label.toLowerCase().includes("rear") ||
+                        device.label.toLowerCase().includes("arrière")
+                    )?.id;
 
-            // On demande EXPLICITEMENT la caméra "environment" (arrière)
-            // L'objet { exact: "environment" } bloque l'accès à la caméra avant.
-            html5QrCode.start(
-                { facingMode: { exact: "environment" } }, 
-                {
-                    ...config,
-                    videoConstraints: {
-                        facingMode: { exact: "environment" },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                }, 
-                onScanSuccess
-            ).catch(err => {
-                console.error("Erreur caméra arrière : ", err);
-                // Si le mode "exact" échoue (certains navigateurs), on tente le mode standard
-                html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-            });
+                    // 3. Si on ne trouve pas par nom, on prend la dernière de la liste (souvent l'arrière)
+                    if (!backCameraId) backCameraId = devices[devices.length - 1].id;
+
+                    const config = { 
+                        fps: 25, 
+                        qrbox: { width: 300, height: 150 },
+                        aspectRatio: 1.0
+                    };
+
+                    // 4. On lance la caméra spécifique
+                    await html5QrCode.start(backCameraId, config, onScanSuccess);
+                } else {
+                    // Repli vers le mode automatique environment si la liste est vide
+                    await html5QrCode.start({ facingMode: "environment" }, { fps: 25, qrbox: { width: 300, height: 150 } }, onScanSuccess);
+                }
+            } catch (err) {
+                console.error("Erreur caméra : ", err);
+                document.getElementById('res-info').innerText = "ERREUR CAMÉRA";
+            }
         }
 
-        window.addEventListener('load', startCamera);
+        window.addEventListener('load', startBackCamera);
     </script>
 </body>
 </html>
