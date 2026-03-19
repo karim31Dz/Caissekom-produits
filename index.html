@@ -3,45 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CaisseKom - Scanner Multi-Format</title>
+    <title>CaisseKom - iOS Ultra Scan</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root { --bg: #000; --accent: #00FF41; }
-        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; overflow: hidden; }
-        #reader { width: 100%; height: 55vh; background: #000; }
+        body { background: var(--bg); color: white; font-family: -apple-system, sans-serif; margin: 0; overflow: hidden; }
+        #reader { width: 100%; height: 50vh; background: #000; }
         .result-panel {
-            height: 45vh; background: #111; border-top: 2px solid var(--accent);
+            height: 50vh; background: #111; border-top: 2px solid var(--accent);
             padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center;
         }
         .prix { font-size: 4.5rem; font-weight: 900; color: var(--accent); margin: 5px 0; }
         .controls { position: absolute; top: 15px; right: 15px; z-index: 100; display: flex; gap: 10px; }
         .btn-ctrl {
             background: rgba(0,0,0,0.7); border: 1px solid var(--accent); color: var(--accent);
-            width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
+            width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
         }
-        .scan-line {
-            position: absolute; top: 27vh; left: 10%; width: 80%; height: 2px;
+        /* Ligne de guidage pour code-barres */
+        .guide {
+            position: absolute; top: 25vh; left: 10%; width: 80%; height: 2px;
             background: var(--accent); box-shadow: 0 0 15px var(--accent); z-index: 5;
-            animation: scanAnim 1.5s infinite ease-in-out;
         }
-        @keyframes scanAnim { 0%, 100% { transform: translateY(-40px); opacity: 0.2; } 50% { transform: translateY(40px); opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div class="controls">
         <button class="btn-ctrl" onclick="switchCamera()">🔄</button>
-        <button class="btn-ctrl" id="btn-torch" onclick="toggleTorch()">🔦</button>
+        <button class="btn-ctrl" onclick="toggleTorch()">🔦</button>
     </div>
 
-    <div class="scan-line"></div>
+    <div class="guide"></div>
     <div id="reader"></div>
 
     <div class="result-panel">
-        <div id="res-nom" style="font-size:1.4rem; font-weight:bold;">PRÊT AU SCAN</div>
+        <div id="res-nom" style="font-size:1.4rem; font-weight:bold;">PRÊT (iOS OPTIMIZ)</div>
         <div class="prix"><span id="res-prix">0.00</span> DA</div>
-        <div id="res-type" style="font-size:0.7rem; color:#666;">LECTURE : TOUS TYPES ACTIFS</div>
+        <div id="res-info" style="font-size:0.7rem; color:#666;">SCANNEZ BIEN HORIZONTALEMENT</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
@@ -54,63 +52,62 @@
 
         fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
 
-        function onScanSuccess(decodedText, decodedResult) {
+        function onScanSuccess(decodedText) {
             const p = catalogue.find(item => item.codebarre === decodedText);
             document.getElementById('audioBip').play().catch(()=>{});
             if (p) {
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix;
             } else {
-                document.getElementById('res-nom').innerText = "INCONNU : " + decodedText;
+                document.getElementById('res-nom').innerText = "CODE: " + decodedText;
             }
-            if(navigator.vibrate) navigator.vibrate(50);
+            if(navigator.vibrate) navigator.vibrate(60);
         }
 
-        function startScanner(faceMode) {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => launch(faceMode)).catch(() => launch(faceMode));
-            } else {
-                launch(faceMode);
-            }
-        }
-
-        function launch(faceMode) {
+        async function launch(faceMode) {
+            if (html5QrCode) { await html5QrCode.stop(); }
             html5QrCode = new Html5Qrcode("reader");
-            
-            // --- CONFIGURATION CRUCIALE POUR CODES-BARRES ---
+
             const config = { 
-                fps: 25, 
-                qrbox: { width: 350, height: 150 }, // Fenêtre large pour codes-barres
-                // ACTIVATION EXPLICITE DE TOUS LES FORMATS
+                fps: 30, 
+                qrbox: { width: 320, height: 150 },
+                aspectRatio: 1.0,
+                // On force iOS à utiliser ses capacités natives de décodage
+                experimentalFeatures: { useBarCodeDetectorIfSupported: true },
                 formatsToSupport: [ 
                     Html5QrcodeSupportedFormats.EAN_13, 
-                    Html5QrcodeSupportedFormats.EAN_8, 
                     Html5QrcodeSupportedFormats.CODE_128, 
-                    Html5QrcodeSupportedFormats.CODE_39, 
-                    Html5QrcodeSupportedFormats.UPC_A, 
-                    Html5QrcodeSupportedFormats.UPC_E,
                     Html5QrcodeSupportedFormats.QR_CODE 
                 ]
             };
-            
-            html5QrCode.start({ facingMode: faceMode }, config, onScanSuccess)
-            .catch(err => {
-                html5QrCode.start({ facingMode: "user" }, config, onScanSuccess);
+
+            // CONTRAINTES VIDÉO SPÉCIFIQUES POUR iPHONE
+            const videoConstraints = {
+                facingMode: faceMode,
+                width: { min: 640, ideal: 1280, max: 1920 },
+                height: { min: 480, ideal: 720, max: 1080 },
+                focusMode: "continuous" // Très important pour les codes-barres
+            };
+
+            html5QrCode.start({ facingMode: faceMode }, { ...config, videoConstraints }, onScanSuccess)
+            .catch(() => {
+                // Repli si le mode environment strict échoue
+                html5QrCode.start(faceMode, config, onScanSuccess);
             });
         }
 
         function switchCamera() {
             currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-            startScanner(currentFacingMode);
+            launch(currentFacingMode);
         }
 
         function toggleTorch() {
             isTorchOn = !isTorchOn;
             html5QrCode.applyVideoConstraints({ advanced: [{ torch: isTorchOn }] })
-            .catch(() => alert("Flash non supporté"));
+            .catch(() => alert("Le flash nécessite la caméra arrière sur iOS"));
         }
 
-        window.addEventListener('load', () => startScanner("environment"));
+        window.addEventListener('load', () => launch("environment"));
     </script>
 </body>
 </html>
