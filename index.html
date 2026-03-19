@@ -3,117 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CaisseKom - Scanner de Prix</title>
+    <title>CaisseKom - Consultation Prix</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
-            --bg-color: #0a0a0a;
-            --card-bg: #1a1a1a;
-            --accent-color: #00ff88; /* Vert Néon */
-            --text-color: #ffffff;
-            --secondary-text: #888888;
+            --bg: #000000;
+            --card: #121212;
+            --accent: #00E676; /* Vert CaisseKom */
+            --text: #FFFFFF;
         }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+        body { 
+            background: var(--bg); color: var(--text); 
+            font-family: sans-serif; margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
         }
-
-        #reader {
-            width: 350px;
-            border-radius: 20px;
-            overflow: hidden;
-            border: 2px solid var(--accent-color);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        #reader { 
+            width: 100%; max-width: 400px; 
+            border: 2px solid var(--accent); border-radius: 15px; overflow: hidden;
         }
-
-        .result-card {
-            margin-top: 30px;
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 15px;
-            width: 85%;
-            max-width: 400px;
-            text-align: center;
-            border-bottom: 4px solid var(--accent-color);
-            display: none; /* Caché par défaut */
+        .container {
+            width: 100%; max-width: 400px; margin-top: 20px;
         }
-
-        .price {
-            font-size: 3.5rem;
-            font-weight: bold;
-            color: var(--accent-color);
-            margin: 10px 0;
+        .info-box {
+            background: var(--card); padding: 20px; border-radius: 15px;
+            border-left: 5px solid var(--accent); margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-
-        .designation {
-            font-size: 1.2rem;
-            color: var(--text-color);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .btn-retry {
-            margin-top: 20px;
-            background: transparent;
-            border: 1px solid var(--secondary-text);
-            color: var(--secondary-text);
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
+        label { color: #888; font-size: 0.8rem; text-transform: uppercase; }
+        .valeur { font-size: 1.4rem; font-weight: bold; margin-top: 5px; display: block; }
+        .prix-tag { font-size: 2.5rem; color: var(--accent); }
+        
+        button {
+            background: var(--accent); border: none; padding: 15px;
+            width: 100%; border-radius: 10px; font-weight: bold; font-size: 1rem;
+            margin-top: 10px; cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <h2 style="color: var(--accent-color);">Scanner Le Porduit</h2>
-    
+    <h2 style="margin-bottom: 20px;">Scanner <span style="color:var(--accent)">Le Produit</span></h2>
+
     <div id="reader"></div>
 
-    <div id="result" class="result-card">
-        <div id="prod-name" class="designation">NOM DU PRODUIT</div>
-        <div id="prod-price" class="price">0.00 DA</div>
-        <button class="btn-retry" onclick="location.reload()">Scanner un autre</button>
+    <div class="container">
+        <div class="info-box">
+            <label>Produit</label>
+            <span id="res-nom" class="valeur">En attente de scan...</span>
+        </div>
+
+        <div class="info-box">
+            <label>Prix de Vente</label>
+            <span id="res-prix" class="valeur prix-tag">0.00 DA</span>
+        </div>
+
+        <button onclick="location.reload()">NOUVEAU SCAN</button>
     </div>
 
     <script>
         let catalogue = [];
 
-        // 1. Charger le JSON de GitHub (URL Raw)
-        fetch('produits.json') 
-            .then(response => response.json())
-            .then(data => {
-                catalogue = data.produits;
-            });
+        // Charger les données depuis votre fichier JSON sur GitHub
+        fetch('produits.json')
+            .then(res => res.json())
+            .then(data => { catalogue = data.produits; })
+            .catch(err => console.error("Erreur chargement JSON"));
 
-        // 2. Configurer le scanner
-        function onScanSuccess(decodedText, decodedResult) {
-            // Arrêter le scanner après succès
-            html5QrcodeScanner.clear();
+        function onScanSuccess(decodedText) {
+            // Chercher le produit dans la liste
+            const p = catalogue.find(item => item.codebarre === decodedText);
             
-            // Chercher dans le catalogue
-            const produit = catalogue.find(p => p.codebarre === decodedText);
-
-            document.getElementById('result').style.display = 'block';
-            
-            if (produit) {
-                document.getElementById('prod-name').innerText = produit.designation;
-                document.getElementById('prod-price').innerText = produit.prix + " DA";
+            if(p) {
+                document.getElementById('res-nom').innerText = p.designation;
+                document.getElementById('res-prix').innerText = p.prix + " DA";
+                // Vibration sur iPhone/Android si supporté
+                if(navigator.vibrate) navigator.vibrate(100);
             } else {
-                document.getElementById('prod-name').innerText = "PRODUIT NON TROUVÉ";
-                document.getElementById('prod-price').innerText = "---";
+                document.getElementById('res-nom').innerText = "Produit non trouvé (" + decodedText + ")";
+                document.getElementById('res-prix').innerText = "-- DA";
             }
         }
 
-        var html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: 250 });
+        // Lancement du scanner
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
         html5QrcodeScanner.render(onScanSuccess);
     </script>
 </body>
