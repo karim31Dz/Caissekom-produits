@@ -3,89 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CaisseKom - Consultation Prix</title>
+    <title>Scanner le code a barre</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        :root {
-            --bg: #000000;
-            --card: #121212;
-            --accent: #00E676; /* Vert CaisseKom */
-            --text: #FFFFFF;
-        }
-        body { 
-            background: var(--bg); color: var(--text); 
-            font-family: sans-serif; margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
-        }
-        #reader { 
-            width: 100%; max-width: 400px; 
-            border: 2px solid var(--accent); border-radius: 15px; overflow: hidden;
-        }
-        .container {
-            width: 100%; max-width: 400px; margin-top: 20px;
-        }
-        .info-box {
-            background: var(--card); padding: 20px; border-radius: 15px;
-            border-left: 5px solid var(--accent); margin-bottom: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        label { color: #888; font-size: 0.8rem; text-transform: uppercase; }
-        .valeur { font-size: 1.4rem; font-weight: bold; margin-top: 5px; display: block; }
-        .prix-tag { font-size: 2.5rem; color: var(--accent); }
-        
-        button {
-            background: var(--accent); border: none; padding: 15px;
-            width: 100%; border-radius: 10px; font-weight: bold; font-size: 1rem;
-            margin-top: 10px; cursor: pointer;
-        }
+        :root { --bg: #050505; --card: #151515; --accent: #00FF41; --text: #FFFFFF; }
+        body { background: var(--bg); color: var(--text); font-family: 'Courier New', Courier, monospace; margin: 0; padding: 15px; text-align: center; }
+        #reader { width: 100%; max-width: 450px; border: 1px solid #333; border-radius: 8px; background: #000; }
+        .res-container { width: 100%; max-width: 450px; margin-top: 20px; }
+        .box { background: var(--card); padding: 15px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #222; text-align: left; }
+        .label { color: var(--accent); font-size: 0.7rem; letter-spacing: 2px; }
+        .valeur { font-size: 1.3rem; display: block; margin-top: 5px; color: #eee; }
+        .prix { font-size: 3rem; font-weight: bold; color: var(--accent); text-shadow: 0 0 10px rgba(0,255,65,0.3); }
+        button { background: #222; color: #fff; border: 1px solid #444; padding: 15px; width: 100%; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2 style="margin-bottom: 20px;">Scanner <span style="color:var(--accent)">Le Produit</span></h2>
+    <h2 style="font-size: 1rem; color: #555;">SYSTEME D'INVENTAIRE <span style="color:var(--accent)">CAISSEKOM</span></h2>
 
     <div id="reader"></div>
 
-    <div class="container">
-        <div class="info-box">
-            <label>Produit</label>
-            <span id="res-nom" class="valeur">En attente de scan...</span>
+    <div class="res-container">
+        <div class="box">
+            <span class="label">DESIGNATION PRODUIT</span>
+            <span id="res-nom" class="valeur">SCANNEZ UN ARTICLE...</span>
         </div>
 
-        <div class="info-box">
-            <label>Prix de Vente</label>
-            <span id="res-prix" class="valeur prix-tag">0.00 DA</span>
+        <div class="box">
+            <span class="label">PRIX DE VENTE (TTC)</span>
+            <span id="res-prix" class="valeur prix">0.00 DA</span>
         </div>
 
-        <button onclick="location.reload()">NOUVEAU SCAN</button>
+        <div class="box" style="border-bottom: none; opacity: 0.6;">
+            <span class="label">TYPE DE CODE DÉTECTÉ</span>
+            <span id="res-type" class="valeur" style="font-size: 0.9rem;">--</span>
+        </div>
+
+        <button onclick="location.reload()">RÉINITIALISER LE SCANNER</button>
     </div>
 
     <script>
         let catalogue = [];
 
-        // Charger les données depuis votre fichier JSON sur GitHub
-        fetch('produits.json')
-            .then(res => res.json())
-            .then(data => { catalogue = data.produits; })
-            .catch(err => console.error("Erreur chargement JSON"));
+        // Chargement du JSON envoyé par WinDev
+        fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
 
-        function onScanSuccess(decodedText) {
-            // Chercher le produit dans la liste
+        function onScanSuccess(decodedText, decodedResult) {
+            // "decodedResult.result.format.formatName" donne le type de code (EAN_13, QR_CODE, etc.)
+            const typeCode = decodedResult.result.format.formatName;
+            document.getElementById('res-type').innerText = typeCode;
+
             const p = catalogue.find(item => item.codebarre === decodedText);
             
             if(p) {
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix + " DA";
-                // Vibration sur iPhone/Android si supporté
-                if(navigator.vibrate) navigator.vibrate(100);
+                if(navigator.vibrate) navigator.vibrate(50);
             } else {
-                document.getElementById('res-nom').innerText = "Produit non trouvé (" + decodedText + ")";
+                document.getElementById('res-nom').innerText = "INCONNU : " + decodedText;
                 document.getElementById('res-prix').innerText = "-- DA";
             }
         }
 
-        // Lancement du scanner
-        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        // CONFIGURATION MULTI-FORMATS
+        const config = { 
+            fps: 20, 
+            qrbox: { width: 250, height: 150 },
+            // On active explicitement tous les formats possibles
+            formatsToSupport: [ 
+                Html5QrcodeSupportedFormats.EAN_13, 
+                Html5QrcodeSupportedFormats.EAN_8, 
+                Html5QrcodeSupportedFormats.CODE_128, 
+                Html5QrcodeSupportedFormats.CODE_39, 
+                Html5QrcodeSupportedFormats.UPC_A, 
+                Html5QrcodeSupportedFormats.UPC_E, 
+                Html5QrcodeSupportedFormats.QR_CODE,
+                Html5QrcodeSupportedFormats.DATA_MATRIX
+            ]
+        };
+
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", config);
         html5QrcodeScanner.render(onScanSuccess);
     </script>
 </body>
