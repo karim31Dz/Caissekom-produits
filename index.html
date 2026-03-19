@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaisseKom - Scanner de Prix</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --card-bg: #1a1a1a;
+            --accent-color: #00ff88; /* Vert Néon */
+            --text-color: #ffffff;
+            --secondary-text: #888888;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #reader {
+            width: 350px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .result-card {
+            margin-top: 30px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 15px;
+            width: 85%;
+            max-width: 400px;
+            text-align: center;
+            border-bottom: 4px solid var(--accent-color);
+            display: none; /* Caché par défaut */
+        }
+
+        .price {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin: 10px 0;
+        }
+
+        .designation {
+            font-size: 1.2rem;
+            color: var(--text-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-retry {
+            margin-top: 20px;
+            background: transparent;
+            border: 1px solid var(--secondary-text);
+            color: var(--secondary-text);
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 style="color: var(--accent-color);">COMPUTIME SCAN</h2>
+    
+    <div id="reader"></div>
+
+    <div id="result" class="result-card">
+        <div id="prod-name" class="designation">NOM DU PRODUIT</div>
+        <div id="prod-price" class="price">0.00 DA</div>
+        <button class="btn-retry" onclick="location.reload()">Scanner un autre</button>
+    </div>
+
+    <script>
+        let catalogue = [];
+
+        // 1. Charger le JSON de GitHub (URL Raw)
+        fetch('produits.json') 
+            .then(response => response.json())
+            .then(data => {
+                catalogue = data.produits;
+            });
+
+        // 2. Configurer le scanner
+        function onScanSuccess(decodedText, decodedResult) {
+            // Arrêter le scanner après succès
+            html5QrcodeScanner.clear();
+            
+            // Chercher dans le catalogue
+            const produit = catalogue.find(p => p.codebarre === decodedText);
+
+            document.getElementById('result').style.display = 'block';
+            
+            if (produit) {
+                document.getElementById('prod-name').innerText = produit.designation;
+                document.getElementById('prod-price').innerText = produit.prix + " DA";
+            } else {
+                document.getElementById('prod-name').innerText = "PRODUIT NON TROUVÉ";
+                document.getElementById('prod-price').innerText = "---";
+            }
+        }
+
+        var html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+</body>
+</html>
