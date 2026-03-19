@@ -2,88 +2,180 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner le code a barre</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CaisseKom - Scanner Pro</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        :root { --bg: #050505; --card: #151515; --accent: #00FF41; --text: #FFFFFF; }
-        body { background: var(--bg); color: var(--text); font-family: 'Courier New', Courier, monospace; margin: 0; padding: 15px; text-align: center; }
-        #reader { width: 100%; max-width: 450px; border: 1px solid #333; border-radius: 8px; background: #000; }
-        .res-container { width: 100%; max-width: 450px; margin-top: 20px; }
-        .box { background: var(--card); padding: 15px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #222; text-align: left; }
-        .label { color: var(--accent); font-size: 0.7rem; letter-spacing: 2px; }
-        .valeur { font-size: 1.3rem; display: block; margin-top: 5px; color: #eee; }
-        .prix { font-size: 3rem; font-weight: bold; color: var(--accent); text-shadow: 0 0 10px rgba(0,255,65,0.3); }
-        button { background: #222; color: #fff; border: 1px solid #444; padding: 15px; width: 100%; border-radius: 5px; cursor: pointer; }
+        :root {
+            --bg: #000000;
+            --card: #121212;
+            --accent: #00FF41; /* Vert Néon Matrix */
+            --text: #FFFFFF;
+            --error: #FF3D00;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Empêche le défilement inutile */
+        }
+
+        /* Zone Caméra */
+        #reader {
+            width: 100%;
+            height: 60vh; /* Prend 60% de l'écran */
+            background: #000;
+        }
+
+        /* Conteneur d'informations */
+        .result-container {
+            height: 40vh;
+            background: var(--card);
+            border-top: 2px solid var(--accent);
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .label {
+            color: #888;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .designation {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            min-height: 1.6rem;
+            color: #E0E0E0;
+        }
+
+        .prix-box {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .prix-valeur {
+            font-size: 4.5rem;
+            font-weight: 900;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .devise {
+            font-size: 1.5rem;
+            color: var(--accent);
+        }
+
+        .status-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
 
-    <h2 style="font-size: 1rem; color: #555;">SYSTEME D'INVENTAIRE <span style="color:var(--accent)">CAISSEKOM</span></h2>
+    <div class="status-bar" id="status">SYSTÈME PRÊT</div>
 
     <div id="reader"></div>
 
-    <div class="res-container">
-        <div class="box">
-            <span class="label">DESIGNATION PRODUIT</span>
-            <span id="res-nom" class="valeur">SCANNEZ UN ARTICLE...</span>
-        </div>
+    <div class="result-container">
+        <div class="label">Article</div>
+        <div id="res-nom" class="designation">Scannez un produit...</div>
 
-        <div class="box">
-            <span class="label">PRIX DE VENTE (TTC)</span>
-            <span id="res-prix" class="valeur prix">0.00 DA</span>
+        <div class="label">Prix de Vente</div>
+        <div class="prix-box">
+            <span id="res-prix" class="prix-valeur">0.00</span>
+            <span class="devise">DA</span>
         </div>
-
-        <div class="box" style="border-bottom: none; opacity: 0.6;">
-            <span class="label">TYPE DE CODE DÉTECTÉ</span>
-            <span id="res-type" class="valeur" style="font-size: 0.9rem;">--</span>
-        </div>
-
-        <button onclick="location.reload()">RÉINITIALISER LE SCANNER</button>
+        
+        <div id="res-code" style="margin-top:15px; font-size:0.7rem; color:#444;">ID: --</div>
     </div>
+
+    <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
 
     <script>
         let catalogue = [];
+        let dernierCode = "";
+        let tempsDernierScan = 0;
 
-        // Chargement du JSON envoyé par WinDev
-        fetch('produits.json').then(res => res.json()).then(data => { catalogue = data.produits; });
+        // 1. CHARGEMENT DU CATALOGUE JSON (Produits envoyés par WinDev)
+        fetch('produits.json')
+            .then(response => response.json())
+            .then(data => {
+                catalogue = data.produits;
+                document.getElementById('status').innerText = "BASE DE DONNÉES OK (" + catalogue.length + " RÉF)";
+            })
+            .catch(err => {
+                document.getElementById('status').style.color = "red";
+                document.getElementById('status').innerText = "ERREUR CHARGEMENT JSON";
+            });
 
+        // 2. FONCTION DE TRAITEMENT DU SCAN
         function onScanSuccess(decodedText, decodedResult) {
-            // "decodedResult.result.format.formatName" donne le type de code (EAN_13, QR_CODE, etc.)
-            const typeCode = decodedResult.result.format.formatName;
-            document.getElementById('res-type').innerText = typeCode;
-
-            const p = catalogue.find(item => item.codebarre === decodedText);
+            const maintenant = Date.now();
             
-            if(p) {
-                document.getElementById('res-nom').innerText = p.designation;
-                document.getElementById('res-prix').innerText = p.prix + " DA";
-                if(navigator.vibrate) navigator.vibrate(50);
+            // Empêche le scan multiple du même produit (attente 2 secondes)
+            if (decodedText === dernierCode && (maintenant - tempsDernierScan) < 2000) {
+                return;
+            }
+
+            dernierCode = decodedText;
+            tempsDernierScan = maintenant;
+
+            // Feedback : Son et Vibration
+            document.getElementById('audioBip').play().catch(()=>{});
+            if(navigator.vibrate) navigator.vibrate(80);
+
+            // Recherche dans le catalogue
+            const produit = catalogue.find(p => p.codebarre === decodedText);
+            
+            if (produit) {
+                document.getElementById('res-nom').innerText = produit.designation;
+                document.getElementById('res-prix').innerText = produit.prix;
+                document.getElementById('res-code').innerText = "CODE: " + decodedText + " (" + decodedResult.result.format.formatName + ")";
             } else {
-                document.getElementById('res-nom').innerText = "INCONNU : " + decodedText;
-                document.getElementById('res-prix').innerText = "-- DA";
+                document.getElementById('res-nom').innerText = "PRODUIT NON RÉFÉRENCÉ";
+                document.getElementById('res-prix').innerText = "---";
+                document.getElementById('res-code').innerText = "CODE SCANNE: " + decodedText;
             }
         }
 
-        // CONFIGURATION MULTI-FORMATS
+        // 3. LANCEMENT DU SCANNER (FORCER CAMÉRA ARRIÈRE + CONTINU)
+        const html5QrCode = new Html5Qrcode("reader");
+        
         const config = { 
-            fps: 20, 
-            qrbox: { width: 250, height: 150 },
-            // On active explicitement tous les formats possibles
-            formatsToSupport: [ 
-                Html5QrcodeSupportedFormats.EAN_13, 
-                Html5QrcodeSupportedFormats.EAN_8, 
-                Html5QrcodeSupportedFormats.CODE_128, 
-                Html5QrcodeSupportedFormats.CODE_39, 
-                Html5QrcodeSupportedFormats.UPC_A, 
-                Html5QrcodeSupportedFormats.UPC_E, 
-                Html5QrcodeSupportedFormats.QR_CODE,
-                Html5QrcodeSupportedFormats.DATA_MATRIX
-            ]
+            fps: 25, 
+            qrbox: { width: 320, height: 180 }, // Zone large pour codes-barres
+            aspectRatio: 1.777778 // Format 16:9
         };
 
-        const html5QrcodeScanner = new Html5QrcodeScanner("reader", config);
-        html5QrcodeScanner.render(onScanSuccess);
+        // On force la caméra arrière ("environment")
+        html5QrCode.start(
+            { facingMode: { exact: "environment" } }, 
+            config, 
+            onScanSuccess
+        ).catch(err => {
+            // Si l'iPhone bloque le mode "exact", on tente le mode simple
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+        });
     </script>
 </body>
 </html>
