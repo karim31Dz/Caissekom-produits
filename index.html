@@ -3,111 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner le Produit </title>
+    <title>CaisseKom - Scanner Pro</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
             --bg: #000000;
-            --card: #111111;
-            --accent: #00FF41; /* Vert Flash */
+            --card: #121212;
+            --accent: #00FF41; /* Vert Néon */
             --text: #FFFFFF;
         }
 
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, sans-serif;
             margin: 0; padding: 0; overflow: hidden;
         }
 
-        /* Scanner : Prend la moitié haute de l'écran */
+        /* Scanner : Moitié haute */
         #reader {
             width: 100%;
-            height: 50vh;
+            height: 55vh;
             background: #000;
         }
 
-        /* Zone de résultat : Prend la moitié basse */
+        /* Panel résultat : Moitié basse */
         .result-panel {
-            height: 50vh;
+            height: 45vh;
             background: var(--card);
-            border-top: 1px solid #333;
-            padding: 30px 20px;
+            border-top: 2px solid var(--accent);
+            padding: 20px;
             box-sizing: border-box;
             text-align: center;
-        }
-
-        .label {
-            color: #666;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .designation {
-            font-size: 1.6rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: #FFF;
-            height: 2rem;
-            overflow: hidden;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #EEE;
+            min-height: 1.8rem;
         }
 
-        .prix-container {
-            display: inline-block;
-            padding: 15px 30px;
-            border: 2px solid var(--accent);
-            border-radius: 12px;
-            background: rgba(0, 255, 65, 0.05);
-        }
-
-        .prix-valeur {
-            font-size: 4rem;
+        .prix-box {
+            font-size: 4.5rem;
             font-weight: 900;
             color: var(--accent);
+            margin: 5px 0;
         }
 
         .devise {
-            font-size: 1.2rem;
-            color: var(--accent);
-            margin-left: 5px;
+            font-size: 1.5rem;
+            vertical-align: middle;
         }
 
-        /* Indicateur de scan en cours */
+        /* Bouton de contrôle (Flash) */
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        .btn-flash {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 10px;
+            border-radius: 50%;
+            width: 50px; height: 50px;
+            font-weight: bold;
+        }
+
+        /* Ligne de scan animée */
         .scan-line {
             position: absolute;
-            top: 25vh;
-            left: 10%;
-            width: 80%;
+            top: 27vh;
+            left: 15%;
+            width: 70%;
             height: 2px;
-            background: rgba(0, 255, 65, 0.5);
-            box-shadow: 0 0 10px var(--accent);
-            z-index: 10;
-            animation: moveLine 2s infinite ease-in-out;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            z-index: 5;
+            animation: scanAnim 2s infinite ease-in-out;
         }
 
-        @keyframes moveLine {
-            0%, 100% { transform: translateY(-60px); }
-            50% { transform: translateY(60px); }
+        @keyframes scanAnim {
+            0%, 100% { transform: translateY(-50px); opacity: 0.3; }
+            50% { transform: translateY(50px); opacity: 1; }
         }
     </style>
 </head>
 <body>
 
+    <div class="controls">
+        <button class="btn-flash" id="btn-torch" onclick="toggleTorch()">🔦</button>
+    </div>
+
     <div class="scan-line"></div>
     <div id="reader"></div>
 
     <div class="result-panel">
-        <div class="label">Article détecté</div>
+        <div style="color: #666; font-size: 0.7rem; letter-spacing: 2px;">PRODUIT</div>
         <div id="res-nom" class="designation">PRÊT AU SCAN...</div>
 
-        <div class="prix-container">
-            <span id="res-prix" class="prix-valeur">0.00</span>
-            <span class="devise">DA</span>
+        <div class="prix-box">
+            <span id="res-prix">0.00</span><span class="devise"> DA</span>
         </div>
         
-        <div id="res-info" style="margin-top:20px; font-size:0.8rem; color:#444;">V1.0 - COMPUTIME</div>
+        <div id="res-type" style="margin-top:10px; font-size:0.7rem; color:#444;">VOTRE SCANNER EST ACTIF</div>
     </div>
 
     <audio id="audioBip" src="https://www.soundjay.com/buttons/beep-07a.mp3"></audio>
@@ -116,71 +123,83 @@
         let catalogue = [];
         let dernierCode = "";
         let tempsDernierScan = 0;
+        let html5QrCode;
+        let isTorchOn = false;
 
-        // 1. Chargement du JSON (Base de données locale)
+        // 1. Charger le JSON de GitHub
         fetch('produits.json')
             .then(res => res.json())
-            .then(data => { 
-                catalogue = data.produits;
-                console.log("Catalogue chargé : " + catalogue.length + " produits");
-            })
-            .catch(() => { document.getElementById('res-nom').innerText = "ERREUR JSON !"; });
+            .then(data => { catalogue = data.produits; })
+            .catch(() => { document.getElementById('res-nom').innerText = "ERREUR CATALOGUE"; });
 
-        function onScanSuccess(decodedText) {
+        function onScanSuccess(decodedText, decodedResult) {
             const maintenant = Date.now();
             
-            // Éviter les scans multiples (Délai de 2.5 secondes entre deux scans identiques)
+            // Évite le scan en boucle du même code (attente 2.5s)
             if (decodedText === dernierCode && (maintenant - tempsDernierScan) < 2500) return;
 
             dernierCode = decodedText;
             tempsDernierScan = maintenant;
 
-            // Feedback immédiat (Bip + Vibration iPhone)
+            // Feedback Son/Vibration
             document.getElementById('audioBip').play().catch(()=>{});
-            if(navigator.vibrate) navigator.vibrate(60);
+            if(navigator.vibrate) navigator.vibrate(70);
 
-            // Recherche dans le catalogue
+            // Recherche
             const p = catalogue.find(item => item.codebarre === decodedText);
             
             if (p) {
                 document.getElementById('res-nom').innerText = p.designation;
                 document.getElementById('res-prix').innerText = p.prix;
-                document.getElementById('res-info').innerText = "CODE : " + decodedText;
+                document.getElementById('res-type').innerText = "CODE: " + decodedText + " (" + decodedResult.result.format.formatName + ")";
             } else {
                 document.getElementById('res-nom').innerText = "NON RÉFÉRENCÉ";
                 document.getElementById('res-prix').innerText = "---";
-                document.getElementById('res-info').innerText = "INCONNU : " + decodedText;
+                document.getElementById('res-type').innerText = "INCONNU: " + decodedText;
             }
         }
 
-        // 2. CONFIGURATION SCANNER TURBO
-        const html5QrCode = new Html5Qrcode("reader");
-        
-        const config = { 
-            fps: 30, // Fluidité maximale
-            qrbox: { width: 300, height: 120 }, // Fente horizontale optimisée
-            aspectRatio: 1.0,
-            experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true // Accélération matérielle iOS/Android
-            }
-        };
-
-        // 3. LANCEMENT CAMÉRA ARRIÈRE HD
-        html5QrCode.start(
-            { facingMode: { exact: "environment" } }, 
-            {
-                ...config,
-                videoConstraints: {
-                    width: { min: 1280, ideal: 1920 }, // Haute résolution pour les petits codes
-                    height: { min: 720, ideal: 1080 },
-                    focusMode: "continuous"
+        // 2. CONFIGURATION ET LANCEMENT CAMÉRA ARRIÈRE
+        function startScanner() {
+            html5QrCode = new Html5Qrcode("reader");
+            
+            const config = { 
+                fps: 30, 
+                qrbox: { width: 320, height: 160 }, // Zone optimisée pour codes-barres
+                aspectRatio: 1.0,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true // Accélération matérielle Apple
                 }
-            }, 
-            onScanSuccess
-        ).catch(() => {
-            // Repli si le mode "exact" est refusé
-            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-        });
+            };
+
+            // Force la caméra arrière ("environment")
+            html5QrCode.start(
+                { facingMode: { exact: "environment" } }, 
+                {
+                    ...config,
+                    videoConstraints: {
+                        width: { min: 640, ideal: 1280 },
+                        height: { min: 480, ideal: 720 },
+                        focusMode: "continuous"
+                    }
+                }, 
+                onScanSuccess
+            ).catch(err => {
+                // Repli si le mode "exact" échoue
+                html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+            });
+        }
+
+        // Gestion de la lampe (Flash)
+        function toggleTorch() {
+            isTorchOn = !isTorchOn;
+            html5QrCode.applyVideoConstraints({
+                advanced: [{ torch: isTorchOn }]
+            }).catch(e => console.log("Flash non supporté"));
+        }
+
+        // Lancement au démarrage
+        window.addEventListener('load', startScanner);
     </script>
 </body>
 </html>
